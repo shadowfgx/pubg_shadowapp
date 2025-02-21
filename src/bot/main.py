@@ -4,7 +4,6 @@ from discord.ext import commands
 import json
 import os
 
-# Importa tu cliente de API y tu método para cargar config
 from src.api.api_client import PUBGAPIClient
 from config.init import load_config
 
