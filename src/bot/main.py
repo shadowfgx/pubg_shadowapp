@@ -67,11 +67,11 @@ async def stats_command(ctx, player_name: str):
 
             # Añade campos (name, value) y decide si serán inline o no
             embed.add_field(name="Tier", value=stats['tier'], inline=True)
-            embed.add_field(name="Kills", value=stats['kills'], inline=True)
-            embed.add_field(name="Wins", value=stats['wins'], inline=True)
-            embed.add_field(name="ADR", value=stats['adr'], inline=True)
-            embed.add_field(name="Partidas jugadas", value=stats['roundsPlayed'], inline=True)
             embed.add_field(name="KDA", value=stats['kda'], inline=True)
+            embed.add_field(name="Kills", value=stats['kills'], inline=True)
+            embed.add_field(name="ADR", value=stats['adr'], inline=True)
+            embed.add_field(name="Wins", value=stats['wins'], inline=True)
+            embed.add_field(name="Partidas jugadas", value=stats['roundsPlayed'], inline=True) 
             embed.add_field(name="Ratio de victoria", value=f"{stats['winRatio']}%", inline=True)
 
             # Puedes poner una miniatura (por ejemplo, un logo de PUBG)
