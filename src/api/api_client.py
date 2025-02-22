@@ -48,6 +48,7 @@ class PUBGAPIClient:
             kills = squad_stats["kills"]
             wins = squad_stats["wins"]
             rounds_played = squad_stats["roundsPlayed"]
+            kda = round(squad_stats["kda"], 2)
             
             # Evitar división por cero
             win_ratio = round((wins / rounds_played) * 100, 2) if rounds_played > 0 else 0
@@ -59,7 +60,8 @@ class PUBGAPIClient:
                 "wins": wins,
                 "adr" : adr,
                 "roundsPlayed": rounds_played,
-                "winRatio": win_ratio
+                "kda": kda,
+                "winRatio": win_ratio   
             }
         except KeyError:
             return {

@@ -58,16 +58,30 @@ async def stats_command(ctx, player_name: str):
         if "error" in stats:
             await ctx.send(f"Error: {stats['error']}")
         else:
-            msg = (
-                f"**Estadísticas de {player_name} (modo squad)**\n"
-                f"Tier: {stats['tier']}\n"
-                f"Kills: {stats['kills']}\n"
-                f"Wins: {stats['wins']}\n"
-                f"ADR: {stats['adr']}\n"
-                f"Partidas jugadas: {stats['roundsPlayed']}\n"
-                f"Ratio de victoria: {stats['winRatio']}%\n"
+            # Crea un embed con título, descripción y color
+            embed = discord.Embed(
+                title=f"Estadísticas de {player_name}",
+                description="Modo Squad",
+                color=0x1abc9c  # Un color en formato hexadecimal (este es un verde/azul "teal")
             )
-            await ctx.send(msg)
+
+            # Añade campos (name, value) y decide si serán inline o no
+            embed.add_field(name="Tier", value=stats['tier'], inline=True)
+            embed.add_field(name="Kills", value=stats['kills'], inline=True)
+            embed.add_field(name="Wins", value=stats['wins'], inline=True)
+            embed.add_field(name="ADR", value=stats['adr'], inline=True)
+            embed.add_field(name="Partidas jugadas", value=stats['roundsPlayed'], inline=True)
+            embed.add_field(name="KDA", value=stats['kda'], inline=True)
+            embed.add_field(name="Ratio de victoria", value=f"{stats['winRatio']}%", inline=True)
+
+            # Puedes poner una miniatura (por ejemplo, un logo de PUBG)
+            #embed.set_thumbnail(url="https://upload.wikimedia.org/wikipedia/en/2/2f/PlayerUnknown%27s_Battlegrounds_cover.jpg")
+
+            # Puedes poner un footer con un texto
+            #embed.set_footer(text="Consulta generada con la API de PUBG")
+
+            # Finalmente, envías el embed
+            await ctx.send(embed=embed)
     except Exception as e:
         await ctx.send(f"Ocurrió un error obteniendo stats de {player_name}: {str(e)}")
 
