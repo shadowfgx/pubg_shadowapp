@@ -2,7 +2,16 @@
 import discord
 from discord.ext import commands
 import json
-import os
+import os, sys
+
+# --- INYECCIÓN DEL PATH RAÍZ ---
+current_dir = os.path.dirname(os.path.abspath(__file__))  # .../src/bot
+# Subimos 2 niveles para llegar a la raíz del proyecto
+# 1er nivel: .../src
+# 2do nivel: .../TU_PROYECTO
+root_dir = os.path.abspath(os.path.join(current_dir, "..", ".."))
+sys.path.insert(0, root_dir)
+# --------------------------------
 
 from src.api.api_client import PUBGAPIClient
 from config.init import load_config
@@ -11,7 +20,7 @@ from config.init import load_config
 cfg = load_config()
 
 # Crea intents (requerido por Discord)
-intents = discord.Intents.default()
+intents = discord.Intents.default() 
 intents.message_content = True  # ¡Importante habilitarlo!
 
 # Crea el bot con un prefijo
