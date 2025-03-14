@@ -15,6 +15,7 @@ sys.path.insert(0, root_dir)
 
 from src.api.api_client import PUBGAPIClient
 from config.init import load_config
+from src.db.database import db
 
 # Carga variables de entorno / config
 cfg = load_config()
@@ -44,7 +45,9 @@ pubg_client = PUBGAPIClient(
 
 @bot.event
 async def on_ready():
-    print(f"Bot conectado como {bot.user}")
+    await db.connect()
+    await db.setup_database()
+    print(f"Bot conectado como {bot.user} y base de datos lista.")
 
 @bot.command(name="stats")
 async def stats_command(ctx, player_name: str):
@@ -84,6 +87,26 @@ async def stats_command(ctx, player_name: str):
             await ctx.send(embed=embed)
     except Exception as e:
         await ctx.send(f"Ocurrió un error obteniendo stats de {player_name}: {str(e)}")
+
+@bot.command(name="register")
+async def register_command(ctx, pubg_username: str):
+    """
+    Comando para registrar el nombre de usuario de PUBG.
+    Uso: !register <nombredeusuario>
+    """
+    user_id = ctx.author.id
+    username = ctx.author.name
+
+    existing_user = await db.fetch("SELECT * FROM users WHERE discord_id = %s", user_id)
+
+    if existing_user:
+        await db.execute("UPDATE users SET pubg_username = %s WHERE discord_id = %s", pubg_username, user_id)
+        await ctx.send(f"{username}, tu nombre de PUBG ha sido actualizado a {pubg_username}.")
+    else:
+        await db.execute("INSERT INTO users (discord_id, username, pubg_username) VALUES (%s, %s, %s)", user_id, username, pubg_username)
+        await ctx.send(f"{username}, has sido registrado con el nombre de PUBG {pubg_username}.")
+
+
 
 # Inicia el bot
 def run_bot():
