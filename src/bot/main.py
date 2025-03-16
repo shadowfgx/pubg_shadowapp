@@ -49,45 +49,6 @@ async def on_ready():
     await db.setup_database()
     print(f"Bot conectado como {bot.user} y base de datos lista.")
 
-@bot.command(name="stats")
-async def stats_command(ctx, player_name: str):
-    """
-    Comando de Discord para obtener estadísticas de un jugador en PUBG.
-    Uso: !stats <nombredeusuario>
-    """
-    try:
-        stats = pubg_client.get_player_stats(player_name)
-
-        if "error" in stats:
-            await ctx.send(f"Error: {stats['error']}")
-        else:
-            # Crea un embed con título, descripción y color
-            embed = discord.Embed(
-                title=f"Estadísticas de {player_name}",
-                description="Modo Squad",
-                color=0x1abc9c  # Un color en formato hexadecimal (este es un verde/azul "teal")
-            )
-
-            # Añade campos (name, value) y decide si serán inline o no
-            embed.add_field(name="Tier", value=stats['tier'], inline=True)
-            embed.add_field(name="KDA", value=stats['kda'], inline=True)
-            embed.add_field(name="Kills", value=stats['kills'], inline=True)
-            embed.add_field(name="ADR", value=stats['adr'], inline=True)
-            embed.add_field(name="Wins", value=stats['wins'], inline=True)
-            embed.add_field(name="Partidas jugadas", value=stats['roundsPlayed'], inline=True) 
-            embed.add_field(name="Ratio de victoria", value=f"{stats['winRatio']}%", inline=True)
-
-            # Puedes poner una miniatura (por ejemplo, un logo de PUBG)
-            #embed.set_thumbnail(url="https://upload.wikimedia.org/wikipedia/en/2/2f/PlayerUnknown%27s_Battlegrounds_cover.jpg")
-
-            # Puedes poner un footer con un texto
-            #embed.set_footer(text="Consulta generada con la API de PUBG")
-
-            # Finalmente, envías el embed
-            await ctx.send(embed=embed)
-    except Exception as e:
-        await ctx.send(f"Ocurrió un error obteniendo stats de {player_name}: {str(e)}")
-
 @bot.command(name="register")
 async def register_command(ctx, pubg_username: str):
     """
@@ -105,6 +66,66 @@ async def register_command(ctx, pubg_username: str):
     else:
         await db.execute("INSERT INTO users (discord_id, username, pubg_username) VALUES (%s, %s, %s)", user_id, username, pubg_username)
         await ctx.send(f"{username}, has sido registrado con el nombre de PUBG {pubg_username}.")
+
+@bot.command(name="stats")
+async def stats_command(ctx, player_name: str = None):
+    """
+    Comando de Discord para obtener estadísticas de un jugador en PUBG.
+    Uso:
+      !stats <nombredeusuario>   -> obtiene stats de ese usuario
+      !stats                     -> si no se pasa nombre, busca en la DB el nombre registrado del autor
+    """
+    # Obtenemos el ID y nombre de Discord del usuario que ejecutó el comando
+    user_id = ctx.author.id
+    username = ctx.author.name
+
+    # Si no recibimos un nombre de usuario en el comando...
+    if player_name is None:
+        # Revisamos en la DB si el usuario está registrado
+        existing_user = await db.fetch("SELECT * FROM users WHERE discord_id = %s", user_id)
+        if not existing_user:
+            await ctx.send(f"{username}, no has registrado tu PUBG username. Usa `!register <nombredeusuario>`.")
+            return
+        # Tomamos el nombre de PUBG de la base de datos
+        player_name = existing_user[0]["pubg_username"]
+
+    # Ahora, hacemos la petición a la API usando el player_name
+    try:
+        stats = pubg_client.get_player_stats(player_name)
+
+        if "error" in stats:
+            await ctx.send(f"Error: {stats['error']}")
+        else:
+            # Creamos un embed con las estadísticas
+            embed = discord.Embed(
+                title=f"Estadísticas de {player_name} \n",
+                description="Modo Squad",
+                color=0x1abc9c
+            )
+            embed.add_field(name="Tier", value=stats['tier'], inline=True)
+            embed.add_field(name="KDA", value=stats['kda'], inline=True)
+            embed.add_field(name="Kills", value=stats['kills'], inline=True)
+            embed.add_field(name="ADR", value=stats['adr'], inline=True)
+            embed.add_field(name="Wins", value=stats['wins'], inline=True)
+            embed.add_field(name="Partidas jugadas", value=stats['roundsPlayed'], inline=True)
+            embed.add_field(name="Ratio de victoria", value=f"{stats['winRatio']}%", inline=True)
+
+                # ────────── AÑADIMOS LA IMAGEN DE RANGO ──────────
+            # Suponiendo que el tier venga en formato "Platinum 5", "Silver 3", etc.
+            rank_filename = stats['tier'].replace(" ", "-") + ".png"  # "Platinum-5.png"
+            rank_path = os.path.join("assets", "Insignias", rank_filename)
+
+            # Si no existe la imagen, usamos un fallback
+            if not os.path.exists(rank_path):
+                rank_path = os.path.join("assets", "Insignias", "Unranked.png")
+
+            # Enviamos la imagen como adjunto y la usamos como thumbnail
+            file = discord.File(rank_path, filename=os.path.basename(rank_path))
+            embed.set_thumbnail(url=f"attachment://{os.path.basename(rank_path)}")
+
+            await ctx.send(file=file, embed=embed)
+    except Exception as e:
+        await ctx.send(f"Ocurrió un error obteniendo stats de {player_name}: {str(e)}")
 
 
 
