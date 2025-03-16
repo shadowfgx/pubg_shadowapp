@@ -2,6 +2,7 @@
 import discord
 from discord.ext import commands
 import json
+import datetime
 import os, sys
 
 # --- INYECCIÓN DEL PATH RAÍZ ---
@@ -46,7 +47,7 @@ pubg_client = PUBGAPIClient(
 @bot.event
 async def on_ready():
     await db.connect()
-    await db.setup_database()
+    await db.setup_all_tables()
     print(f"Bot conectado como {bot.user} y base de datos lista.")
 
 @bot.command(name="register")
@@ -62,10 +63,10 @@ async def register_command(ctx, pubg_username: str):
 
     if existing_user:
         await db.execute("UPDATE users SET pubg_username = %s WHERE discord_id = %s", pubg_username, user_id)
-        await ctx.send(f"{username}, tu nombre de PUBG ha sido actualizado a {pubg_username}.")
+        await ctx.send(f"{username}, tu usuario de PUBG ha sido actualizado a {pubg_username}.")
     else:
         await db.execute("INSERT INTO users (discord_id, username, pubg_username) VALUES (%s, %s, %s)", user_id, username, pubg_username)
-        await ctx.send(f"{username}, has sido registrado con el nombre de PUBG {pubg_username}.")
+        await ctx.send(f"{username}, has sido registrado como tu usuario de PUBG {pubg_username}.")
 
 @bot.command(name="stats")
 async def stats_command(ctx, player_name: str = None):
@@ -84,7 +85,7 @@ async def stats_command(ctx, player_name: str = None):
         # Revisamos en la DB si el usuario está registrado
         existing_user = await db.fetch("SELECT * FROM users WHERE discord_id = %s", user_id)
         if not existing_user:
-            await ctx.send(f"{username}, no has registrado tu PUBG username. Usa `!register <nombredeusuario>`.")
+            await ctx.send(f"{username}, no has registrado tu usuario de PUBG. Usa `!register <nombredeusuario>`.")
             return
         # Tomamos el nombre de PUBG de la base de datos
         player_name = existing_user[0]["pubg_username"]
@@ -126,6 +127,124 @@ async def stats_command(ctx, player_name: str = None):
             await ctx.send(file=file, embed=embed)
     except Exception as e:
         await ctx.send(f"Ocurrió un error obteniendo stats de {player_name}: {str(e)}")
+
+
+@bot.command(name="scrims")
+async def scrims_command(ctx):
+    """
+    Comando para apuntarse a las scrims del día.
+    Uso: !scrims
+    """
+    user_id = ctx.author.id
+    username = ctx.author.name
+    
+    # 1) Verifica si está en la tabla users
+    registered_user = await db.fetch("SELECT pubg_username FROM users WHERE discord_id = %s", user_id)
+    if not registered_user:
+        await ctx.send(f"{username}, no has registrado tu PUBG username. Usa `!register <nombre>`.")  
+        return
+    
+    pubg_username = registered_user[0]["pubg_username"]
+    
+    # 2) Fecha de hoy en formato dd/mm/yyyy
+    today_str = datetime.datetime.now().strftime("%d/%m/%Y")
+    
+    # 3) Buscar el máximo orden de hoy
+    max_order = await db.fetch(
+        "SELECT COALESCE(MAX(orden), 0) AS max_orden FROM scrims WHERE scrim_date = %s",
+        today_str
+    )
+    new_order = max_order[0]["max_orden"] + 1  # Ej: si no hay nadie, será 1
+    
+    # 4) Insertar con el nuevo orden
+    try:
+        await db.execute(
+            "INSERT INTO scrims (discord_id, pubg_username, scrim_date, orden) VALUES (%s, %s, %s, %s)",
+            user_id, pubg_username, today_str, new_order
+        )
+        await ctx.send(f"{username}, te has apuntado a scrims de hoy ({today_str}).")
+    except Exception as e:
+        if "Duplicate entry" in str(e):
+            await ctx.send(f"{username}, ya estabas apuntado a las scrims de hoy.")
+        else:
+            await ctx.send(f"Ocurrió un error apuntándote: {e}")
+            return
+    
+    # 5) Mostrar la lista de inscritos de HOY con un embed
+    scrims_today = await db.fetch(
+        "SELECT pubg_username, orden FROM scrims WHERE scrim_date = %s ORDER BY orden ASC",
+        today_str
+    )
+    
+    if scrims_today:
+        # Construimos un embed similar al de !stats
+        embed = discord.Embed(
+            title=f"Scrims de hoy - {today_str}",
+            description="Jugadores inscritos",
+            color=0x1abc9c
+        )
+        
+        # Para formar una lista: "1) userA\n2) userB\n..."
+        # Tomamos orden y pubg_username
+        players_list = "\n".join(
+            [f"`{row['orden']})` **{row['pubg_username']}**" for row in scrims_today]
+        )
+        
+        # Añadimos un campo con esa lista
+        embed.add_field(name="Inscritos", value=players_list, inline=False)
+        
+        # Footer opcional
+        embed.set_footer(text="Shadowapp al servicio")
+        
+        await ctx.send(embed=embed)
+    else:
+        await ctx.send(f"No hay nadie inscrito para hoy ({today_str}).")
+
+
+
+@bot.command(name="notscrims")
+async def notscrims_command(ctx):
+    user_id = ctx.author.id
+    username = ctx.author.name
+    
+    registered_user = await db.fetch("SELECT pubg_username FROM users WHERE discord_id = %s", user_id)
+    if not registered_user:
+        await ctx.send(f"{username}, no estás registrado en la base de datos.")
+        return
+    
+    today_str = datetime.datetime.now().strftime("%d/%m/%Y")
+    
+    result = await db.execute(
+        "DELETE FROM scrims WHERE discord_id = %s AND scrim_date = %s",
+        user_id, today_str
+    )
+    
+    if "0 rows" in str(result):
+        await ctx.send(f"{username}, no estabas apuntado para hoy.")
+    else:
+        await ctx.send(f"{username}, te has dado de baja de scrims para hoy ({today_str}).")
+    
+    # Lista de inscritos después de eliminar
+    scrims_today = await db.fetch(
+        "SELECT pubg_username, orden FROM scrims WHERE scrim_date = %s ORDER BY orden ASC",
+        today_str
+    )
+    
+    if scrims_today:
+        embed = discord.Embed(
+            title=f"Scrims de hoy - {today_str}",
+            description="Jugadores inscritos",
+            color=0x1abc9c
+        )
+        players_list = "\n".join(
+            [f"`{row['orden']})` **{row['pubg_username']}**" for row in scrims_today]
+        )
+        embed.add_field(name="Inscritos", value=players_list, inline=False)
+        embed.set_footer(text="Shadowapp al servicio")
+        
+        await ctx.send(embed=embed)
+    else:
+        await ctx.send(f"No hay nadie inscrito para hoy ({today_str}).")
 
 
 
