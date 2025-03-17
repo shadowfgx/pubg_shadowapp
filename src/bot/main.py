@@ -187,7 +187,7 @@ async def scrims_command(ctx):
         # Para formar una lista: "1) userA\n2) userB\n..."
         # Tomamos orden y pubg_username
         players_list = "\n".join(
-            [f"`{row['orden']})` **{row['pubg_username']}**" for row in scrims_today]
+            [f"`{row['orden']}.` **{row['pubg_username']}**" for row in scrims_today]
         )
         
         # Añadimos un campo con esa lista
@@ -237,7 +237,7 @@ async def notscrims_command(ctx):
             color=0x1abc9c
         )
         players_list = "\n".join(
-            [f"`{row['orden']})` **{row['pubg_username']}**" for row in scrims_today]
+            [f"`{row['orden']}.` **{row['pubg_username']}**" for row in scrims_today]
         )
         embed.add_field(name="Inscritos", value=players_list, inline=False)
         embed.set_footer(text="Shadowapp al servicio")
