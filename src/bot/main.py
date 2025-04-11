@@ -4,6 +4,7 @@ from discord.ext import commands
 import json
 import datetime
 import os, sys
+import requests
 
 # --- INYECCIÓN DEL PATH RAÍZ ---
 current_dir = os.path.dirname(os.path.abspath(__file__))  # .../src/bot
@@ -245,6 +246,179 @@ async def notscrims_command(ctx):
         await ctx.send(embed=embed)
     else:
         await ctx.send(f"No hay nadie inscrito para hoy ({today_str}).")
+
+@bot.command(name="scrape")
+async def scrape_command(ctx):
+    """
+    Comando para obtener datos del leaderboard a través de la petición interna (GraphQL)
+    y filtrar los jugadores cuyo campo 'teamName' coincida con la constante definida.
+    """
+    TEAM_NAME_FILTER = "fghjkdfas MIX"  # Cambia este valor según lo que necesites filtrar
+
+    # Endpoint interno de la API GraphQL
+    url = "https://tjjkdyimqrb7jjnc6m5rpefjtu.appsync-api.eu-west-1.amazonaws.com/graphql"
+
+    # Encabezados necesarios para emular la petición real
+    headers = {
+        "accept": "*/*",
+        "accept-language": "es-ES,es;q=0.9",
+        "content-type": "application/json",
+        "origin": "https://twire.gg",
+        "priority": "u=1, i",
+        "referer": "https://twire.gg/",
+        "sec-ch-ua": '"Chromium";v="134", "Not:A-Brand";v="24", "Brave";v="134"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"Windows"',
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "cross-site",
+        "sec-gpc": "1",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+        "x-amz-user-agent": "aws-amplify/2.0.6",
+        "x-api-key": "da2-vqpq6wms5ndbvhl2r7kvzbpmfi"
+    }
+
+    # Cuerpo de la petición (payload) con la consulta GraphQL
+    payload = {
+        "operationName": "PlatformStats",
+        "variables": {
+            "tournament": "968faa0c-948d-11eb-bab8-f2485b011165-20250319-lobby-3",
+            "token": "",
+            "filters": None,
+            "game": "pubg"
+        },
+        "query": (
+            "query PlatformStats($tournament: String!, $token: String, $filters: TournamentStatsFilterInput, $game: String!) {"
+            "\n  platformStats(tournament: $tournament, token: $token, filters: $filters, game: $game) {"
+            "\n    tournamentName"
+            "\n    groupName"
+            "\n    matchName"
+            "\n    lastMatchName"
+            "\n    leaderboard {"
+            "\n      username"
+            "\n      teamName"
+            "\n      teamLogo"
+            "\n      kills"
+            "\n      assists"
+            "\n      kd"
+            "\n      kda"
+            "\n      kas"
+            "\n      killsKnocks"
+            "\n      deaths"
+            "\n      diedFirst"
+            "\n      diedSecond"
+            "\n      diedThird"
+            "\n      diedForth"
+            "\n      damageDealt"
+            "\n      arDamage"
+            "\n      dmrDamage"
+            "\n      srDamage"
+            "\n      smgDamage"
+            "\n      shotgunDamage"
+            "\n      lmgDamage"
+            "\n      pistolDamage"
+            "\n      avgDamageDealt"
+            "\n      damageTaken"
+            "\n      avgDamageTaken"
+            "\n      dbnos"
+            "\n      knocked"
+            "\n      revives"
+            "\n      revived"
+            "\n      headshotKills"
+            "\n      killSteals"
+            "\n      killsStolenFrom"
+            "\n      swimDistance"
+            "\n      walkDistance"
+            "\n      rideDistance"
+            "\n      longestKill"
+            "\n      timeSurvived"
+            "\n      avgTimeSurvived"
+            "\n      killStreaks"
+            "\n      heals"
+            "\n      boosts"
+            "\n      vehicleDestroys"
+            "\n      healthRecovered"
+            "\n      grenadePickup"
+            "\n      grenadeDrop"
+            "\n      grenadeThrow"
+            "\n      grenadeDamage"
+            "\n      molotovPickup"
+            "\n      molotovDrop"
+            "\n      molotovThrow"
+            "\n      molotovDamage"
+            "\n      smokebombPickup"
+            "\n      smokebombDrop"
+            "\n      smokebombThrow"
+            "\n      flashbangPickup"
+            "\n      flashbangDrop"
+            "\n      flashbangThrow"
+            "\n      damageTakenFromBlueZone"
+            "\n      damageTakenFromEnemy"
+            "\n      damageDealtDamageTaken"
+            "\n      numOfMatches"
+            "\n      attacker"
+            "\n      finisher"
+            "\n      utility"
+            "\n      survivor"
+            "\n      teammate"
+            "\n      stealer"
+            "\n      twr"
+            "\n      __typename"
+            "\n    }"
+            "\n    overlayDesign"
+            "\n    overlayColor"
+            "\n    prodTournamentId"
+            "\n    __typename"
+            "\n  }"
+            "\n}"
+        )
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+    except requests.exceptions.RequestException as e:
+        await ctx.send(f"Error al realizar la petición: {e}")
+        return
+
+    if response.status_code != 200:
+        await ctx.send(f"Error al obtener datos. Código de estado: {response.status_code}")
+        return
+
+    try:
+        data = response.json()
+    except ValueError:
+        await ctx.send("La respuesta no está en formato JSON.")
+        return
+
+    try:
+        leaderboard = data["data"]["platformStats"]["leaderboard"]
+    except KeyError:
+        await ctx.send("La estructura del JSON no es la esperada.")
+        return
+
+    # Filtramos por 'teamName' (comparación sin distinguir mayúsculas/minúsculas)
+    filtered_entries = [
+        entry for entry in leaderboard
+        if entry.get("teamName", "").lower() == TEAM_NAME_FILTER.lower()
+    ]
+
+    if not filtered_entries:
+        await ctx.send(f"No se encontraron entradas para el equipo '{TEAM_NAME_FILTER}'.")
+        return
+
+    # Construimos un mensaje con algunos datos relevantes de cada entrada filtrada
+    message_lines = []
+    for entry in filtered_entries:
+        username = entry.get("username", "Desconocido")
+        team = entry.get("teamName", "Desconocido")
+        kills = entry.get("kills", "N/A")
+        message_lines.append(f"Usuario: {username} | Equipo: {team} | Kills: {kills}")
+
+    message = "\n".join(message_lines)
+    if len(message) > 1900:
+        message = message[:1900] + "\n[Mensaje recortado]"
+
+    await ctx.send(f"```{message}```")
 
 
 

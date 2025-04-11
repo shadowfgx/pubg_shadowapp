@@ -33,7 +33,7 @@ class PUBGAPIClient:
         # 1. Obtener el ID del jugador
         player_id = self.get_player_id(player_name)
 
-        season_id = "division.bro.official.pc-2018-34"
+        season_id = "division.bro.official.pc-2018-35"
         url = f"{self.base_url}/shards/{self.shard}/players/{player_id}/seasons/{season_id}/ranked"
 
         response = requests.get(url, headers=self.headers)
