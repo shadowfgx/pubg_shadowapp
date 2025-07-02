@@ -33,15 +33,14 @@ class PUBGAPIClient:
         # 1. Obtener el ID del jugador
         player_id = self.get_player_id(player_name)
 
-        season_id = "division.bro.official.pc-2018-35"
+        season_id = "division.bro.official.pc-2018-36"
         url = f"{self.base_url}/shards/{self.shard}/players/{player_id}/seasons/{season_id}/ranked"
-
         response = requests.get(url, headers=self.headers)
         response.raise_for_status()
         data = response.json()
-
+        print(data)
         try:
-            squad_stats = data["data"]["attributes"]["rankedGameModeStats"]["squad-fpp"]
+            squad_stats = data["data"]["attributes"]["rankedGameModeStats"]["All"]
             tier = squad_stats["currentTier"]["tier"] + " " + squad_stats["currentTier"]["subTier"]
             kills = squad_stats["kills"]
             wins = squad_stats["wins"]
