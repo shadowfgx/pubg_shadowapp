@@ -40,7 +40,7 @@ class PUBGAPIClient:
         data = response.json()
         print(data)
         try:
-            squad_stats = data["data"]["attributes"]["rankedGameModeStats"]["All"]
+            squad_stats = data["data"]["attributes"]["rankedGameModeStats"]["squad-fpp"]
             tier = squad_stats["currentTier"]["tier"] + " " + squad_stats["currentTier"]["subTier"]
             kills = squad_stats["kills"]
             wins = squad_stats["wins"]
