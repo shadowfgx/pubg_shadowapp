@@ -93,10 +93,20 @@ No uses tokens reales en git. `.env` esta ignorado por `.gitignore`.
 ```text
 !register <usuario_pubg>
 !stats [usuario_pubg]
+!ranked [usuario_pubg]
 !scrims
 !notscrims
 !scrape
 ```
+
+`!stats` y `!ranked` abren un flujo de dos desplegables:
+
+```text
+1. Seleccionar temporada
+2. Seleccionar modo disponible: Solo/Duo/Squad y FPP/TPP
+```
+
+Solo se muestran modos con partidas jugadas en esa temporada.
 
 ## Estructura del codigo
 
