@@ -1,29 +1,37 @@
 import aiomysql
-from config.init import load_config
-
-cfg = load_config()
+import asyncio
 
 class Database:
-    def __init__(self):
+    def __init__(self, config):
+        self.config = config
         self.pool = None
 
-    async def connect(self):
+    async def connect(self, retries=10, delay=3):
         """ Crea el pool de conexiones a MySQL con los datos del .env. """
-        self.pool = await aiomysql.create_pool(
-            host=cfg["DB_HOST"],
-            port=int(cfg["DB_PORT"]),
-            user=cfg["DB_USER"],
-            password=cfg["DB_PASSWORD"],
-            db=cfg["DB_NAME"]
-        )
-        print("✅ Conectado a la base de datos MySQL en Cybrancee")
+        for attempt in range(1, retries + 1):
+            try:
+                self.pool = await aiomysql.create_pool(
+                    host=self.config["DB_HOST"],
+                    port=int(self.config["DB_PORT"]),
+                    user=self.config["DB_USER"],
+                    password=self.config["DB_PASSWORD"],
+                    db=self.config["DB_NAME"],
+                    autocommit=False,
+                )
+                print(f"Conectado a MySQL en {self.config['DB_HOST']}:{self.config['DB_PORT']}")
+                return
+            except Exception:
+                if attempt == retries:
+                    raise
+                print(f"MySQL no esta listo. Reintentando ({attempt}/{retries})...")
+                await asyncio.sleep(delay)
 
     async def close(self):
         """ Cierra el pool de conexiones. """
         if self.pool:
             self.pool.close()
             await self.pool.wait_closed()
-            print("❌ Conexión cerrada")
+            print("Conexion MySQL cerrada")
 
     async def execute(self, query, *args):
         """
@@ -60,7 +68,7 @@ class Database:
                 pubg_username VARCHAR(255)
             )
         """)
-        print("✅ Tabla 'users' verificada o creada.")
+        print("Tabla 'users' verificada o creada.")
 
     async def setup_scrims_table(self):
         """
@@ -79,7 +87,7 @@ class Database:
                 UNIQUE KEY unique_scrim (discord_id, scrim_date)
             )
         """)
-        print("✅ Tabla 'scrims' verificada o creada.")
+        print("Tabla 'scrims' verificada o creada.")
 
 
     async def setup_all_tables(self):
@@ -89,8 +97,4 @@ class Database:
         """
         await self.setup_users_table()
         await self.setup_scrims_table()
-        print("✅ Todas las tablas fueron verificadas o creadas.")
-
-
-# Instancia global de la base de datos
-db = Database()
+        print("Todas las tablas fueron verificadas o creadas.")
